@@ -28,10 +28,8 @@ def set_background(image_url):
 
 set_background("https://static.vecteezy.com/system/resources/thumbnails/038/236/603/small_2x/4k-luxury-gold-and-black-stripes-background-video.jpg")
 
-# Path where CSVs are stored
 DATA_PATH = r"C:\Users\ajayj\Desktop\archive"
 
-# Map dataset display names to filenames
 datasets = {
     "Customers": "olist_customers_dataset.csv",
     "Geolocation": "olist_geolocation_dataset.csv",
@@ -49,7 +47,6 @@ def load_dataset(file_name):
     path = os.path.join(DATA_PATH, file_name)
     return pd.read_csv(path)
 
-# Sidebar Styling & Content
 st.sidebar.markdown("""
     <style>
         .sidebar .sidebar-content {
@@ -82,13 +79,9 @@ with st.sidebar.container():
         unsafe_allow_html=True
     )
 
-    # Select dataset to load
     selected_dataset = st.selectbox("Select Dataset", list(datasets.keys()))
-
-    # Load data button
     load_data_button = st.button("Load Dataset")
 
-# Placeholder for dataset
 data = None
 
 if load_data_button:
@@ -98,7 +91,6 @@ if load_data_button:
 if data is not None:
     st.title(f"SmartRetail - {selected_dataset} Dataset")
 
-    # Show data preview or description
     explore_option = st.radio("Choose View", ["Preview Data", "Dataset Description"])
 
     if explore_option == "Preview Data":
@@ -109,10 +101,12 @@ if data is not None:
         st.header("📊 Dataset Description")
         st.write(data.describe(include='all'))
 
-    # Show dataset-specific insights & visualizations
     st.header("📈 Insights & Visualizations")
 
+    # --- Extended part starts here ---
+
     if selected_dataset == "Customers":
+        # Customer distribution
         if 'customer_state' in data.columns:
             state_counts = data['customer_state'].value_counts().reset_index()
             state_counts.columns = ['State', 'Number of Customers']
@@ -120,6 +114,7 @@ if data is not None:
                          title="Customer Distribution by State")
             st.plotly_chart(fig)
 
+        # Customer ID length distribution
         if 'customer_id' in data.columns:
             data['id_length'] = data['customer_id'].apply(len)
             fig2, ax2 = plt.subplots()
@@ -127,7 +122,62 @@ if data is not None:
             ax2.set_title("Customer ID Length Distribution")
             st.pyplot(fig2)
 
-    elif selected_dataset == "Order Items":
+        # Load related reviews dataset for happiness prediction
+        st.subheader("Customer Happiness Prediction")
+
+        if st.checkbox("Load Reviews and Predict Happiness"):
+            # Load reviews dataset
+            reviews = load_dataset(datasets["Order Reviews"])
+
+            # Merge customers with reviews on customer_id via orders
+            orders = load_dataset(datasets["Orders"])
+            merged = orders[['order_id', 'customer_id']].merge(reviews[['order_id', 'review_score']], on='order_id', how='inner')
+
+            # Aggregate average review score per customer
+            customer_reviews = merged.groupby('customer_id')['review_score'].mean().reset_index()
+            customer_reviews.rename(columns={'review_score': 'avg_review_score'}, inplace=True)
+
+            # Merge with customers data
+            customer_data = data.merge(customer_reviews, on='customer_id', how='left').fillna(0)
+
+            # Define happiness label (e.g., avg_review_score >=4 -> Happy (1), else Not Happy (0))
+            customer_data['happy'] = (customer_data['avg_review_score'] >= 4).astype(int)
+
+            st.write("Customer data with happiness label:")
+            st.dataframe(customer_data[['customer_id', 'avg_review_score', 'happy']].head())
+
+            # Prepare features for selection
+            customer_data['id_length'] = customer_data['customer_id'].apply(len)
+
+            # Define possible features for prediction
+            possible_features = ['id_length', 'avg_review_score']  # add more features if available
+
+            # Feature selector in sidebar
+            selected_features = st.sidebar.multiselect(
+                "Select Features for Prediction",
+                options=possible_features,
+                default=possible_features
+            )
+
+            if len(selected_features) == 0:
+                st.warning("Please select at least one feature to train the model.")
+            else:
+                X = customer_data[selected_features]
+                y = customer_data['happy']
+
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+                model = RandomForestClassifier(random_state=42)
+                model.fit(X_train, y_train)
+                preds = model.predict(X_test)
+
+                st.subheader("Classification Report:")
+                st.text(classification_report(y_test, preds))
+
+                st.subheader("Confusion Matrix:")
+                st.text(confusion_matrix(y_test, preds))
+
+    if selected_dataset == "Order Items":
         if 'order_item_id' in data.columns:
             fig = px.histogram(data, x='order_item_id', nbins=10, title="Distribution of Order Item IDs")
             st.plotly_chart(fig)
@@ -136,41 +186,18 @@ if data is not None:
             fig2 = px.box(data, y='price', title="Price Distribution of Order Items")
             st.plotly_chart(fig2)
 
-    elif selected_dataset == "Products":
-        if 'product_category_name' in data.columns:
-            top_categories = data['product_category_name'].value_counts().head(10)
-            fig = px.bar(top_categories, x=top_categories.index, y=top_categories.values,
-                         labels={'x': 'Product Category', 'y': 'Count'}, title="Top 10 Product Categories")
-            st.plotly_chart(fig)
+        # Product sales summary
+        st.subheader("Product Sales Summary")
+        product_sales = data.groupby('product_id')['order_item_id'].count().reset_index()
+        product_sales.rename(columns={'order_item_id': 'total_sold'}, inplace=True)
+        top_products = product_sales.sort_values(by='total_sold', ascending=False).head(10)
 
-    elif selected_dataset == "Orders":
-        if 'order_status' in data.columns:
-            status_counts = data['order_status'].value_counts()
-            fig = px.pie(values=status_counts.values, names=status_counts.index, title="Order Status Distribution")
-            st.plotly_chart(fig)
+        fig3 = px.bar(top_products, x='product_id', y='total_sold',
+                      labels={'product_id': 'Product ID', 'total_sold': 'Total Units Sold'},
+                      title="Top 10 Best Selling Products")
+        st.plotly_chart(fig3)
 
-    # Add your own dataset-specific visualizations here...
-
-    # Simple churn model demo for customers dataset
-    if selected_dataset == "Customers" and {'customer_state', 'id_length'}.issubset(data.columns):
-        if st.checkbox("Show Churn Prediction Model"):
-            dummy_data = data[['customer_state', 'id_length']].copy()
-            dummy_data = pd.get_dummies(dummy_data, drop_first=True)
-            dummy_data['churn'] = np.random.randint(0, 2, dummy_data.shape[0])  # Random churn simulation
-
-            X = dummy_data.drop('churn', axis=1)
-            y = dummy_data['churn']
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-            model = RandomForestClassifier()
-            model.fit(X_train, y_train)
-            predictions = model.predict(X_test)
-
-            st.subheader("Classification Report:")
-            st.text(classification_report(y_test, predictions))
-
-            st.subheader("Confusion Matrix:")
-            st.text(confusion_matrix(y_test, predictions))
+    # Add more dataset-specific insights here...
 
     # Export option
     if st.button("Export Current Dataset to CSV"):
@@ -181,4 +208,3 @@ if data is not None:
 else:
     st.title("Welcome to SmartRetail Dashboard")
     st.write("Select a dataset from the sidebar and click 'Load Dataset' to start exploring.")
-
