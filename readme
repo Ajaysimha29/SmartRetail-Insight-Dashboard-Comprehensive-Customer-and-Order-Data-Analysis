@@ -1,0 +1,44 @@
+# SmartRetail Insight Dashboard: Comprehensive Customer and Order Data Analysis
+
+## Project Overview
+
+SmartRetail Insight Dashboard is an interactive data analytics and visualization project designed to provide actionable insights from the Olist e-commerce dataset. This project integrates multiple data sources related to customers, orders, payments, products, sellers, and reviews to enable a holistic understanding of retail dynamics. Using Python and Streamlit, the dashboard offers data exploration, visualization, and predictive modeling capabilities to analyze customer behavior and support business decisions.
+
+## Dataset
+
+The project uses multiple CSV datasets from the Olist e-commerce dataset archive, including:
+
+- `olist_customers_dataset.csv`
+- `olist_geolocation_dataset.csv`
+- `olist_order_items_dataset.csv`
+- `olist_order_payments_dataset.csv`
+- `olist_order_reviews_dataset.csv`
+- `olist_orders_dataset.csv`
+- `olist_products_dataset.csv`
+- `olist_sellers_dataset.csv`
+- `product_category_name_translation.csv`
+
+All datasets are stored locally under the path: `C:\Users\ajayj\Desktop\archive`
+
+## Features
+
+- **Data Preview & Summary**: Explore the dataset structure, view data samples, and descriptive statistics.
+- **Customer Insights**: Analyze customer distribution by state and customer ID characteristics.
+- **Interactive Visualizations**: Bar charts and histograms powered by Plotly and Seaborn.
+- **Churn Prediction Model**: Simple machine learning model using RandomForestClassifier to simulate customer churn prediction.
+- **Data Export**: Export cleaned datasets for further analysis or reporting.
+
+## Technologies Used
+
+- Python 3.x
+- Pandas, NumPy for data manipulation
+- Matplotlib, Seaborn, Plotly for visualization
+- Streamlit for web dashboard and UI
+- scikit-learn for machine learning models
+
+## Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/SmartRetailInsightDashboard.git
+   cd SmartRetailInsightDashboard
